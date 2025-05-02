@@ -1,48 +1,49 @@
-
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom'; 
+import { Link } from 'react-router-dom';
 
 const Rankings = () => {
-  const  [topRatedSeries, setTopRatedSeries] = useState([]);
+  const [topRatedSeries, setTopRatedSeries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-
   useEffect(() => {
-    const fetchTopRatedSeries = async () => {
-      const url = 'https://api.themoviedb.org/3/tv/top_rated?language=vi&page=1';
-      const options = {
-        method: 'GET',
-        headers: {
-          accept: 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_API_KEY}`,
-        },
-      };
+    let isMounted = true;
 
+    const fetchSeriesFromBackend = async () => {
       try {
-        const response = await fetch(url, options);
+        const response = await fetch('http://localhost:8080/api/series');
         if (!response.ok) {
-          throw new Error('Không thể tải danh sách top rated từ TMDB');
+          throw new Error('Không thể lấy danh sách series từ backend');
         }
-        const data = await response.json();
-       
-        const topFive = data.results.slice(0, 8).map((series, index) => ({
-          rank: index + 1,
-          title: series.name,
-          label: `${series.vote_average}/10 [${series.first_air_date.slice(0, 8)}]`,
-          image: `https://image.tmdb.org/t/p/w200${series.poster_path}`,
-          id: series.id, 
-        }));
-
-        setTopRatedSeries(topFive);
-        setLoading(false);
+        const result = await response.json();
+        if (isMounted) {
+          const seriesData = result.data || [];
+          if (!Array.isArray(seriesData)) {
+            throw new Error('Dữ liệu series từ backend không phải là mảng');
+          }
+          const topRated = seriesData.slice(0, 10).map((series, index) => ({
+            rank: index + 1,
+            title: series.title,
+            label: `${series.voteAverage}/10 [${series.firstAirDate.slice(0, 10)}]`,
+            image: `https://image.tmdb.org/t/p/w200${series.posterPath}`,
+            id: series.tmdbId,
+          }));
+          setTopRatedSeries(topRated);
+          setLoading(false);
+        }
       } catch (err) {
-        setError(err.message);
-        setLoading(false);
+        if (isMounted) {
+          setError(err.message);
+          setLoading(false);
+        }
       }
     };
 
-    fetchTopRatedSeries();
+    fetchSeriesFromBackend();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   if (loading) return <p className="text-gray-400">Đang tải bảng xếp hạng...</p>;

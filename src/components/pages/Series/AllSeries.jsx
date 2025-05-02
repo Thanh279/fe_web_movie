@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FaPlay } from "react-icons/fa";
-import { getAllAnimations } from '../../Service/Api'; 
+import { getAllAnimations, API_BASE_URL } from '../../Service/Api'; // Import API_BASE_URL
 
 const AllSeries = () => {
   const [tvSeries, setTvSeries] = useState([]);
@@ -51,20 +51,20 @@ const AllSeries = () => {
         const fixedTmdbData = combinedTmdbData.slice(0, 20);
 
         // Fetch animations from your backend
-        const backendData = await getAllAnimations();
-
-        const animationsWithEpisodes = await Promise.all(
-          backendData.map(async (animation) => {
-            const episodesResponse = await fetch(
-              `http://localhost:8080/api/animations/${animation.id}/episodes`
-            );
-            const episodes = episodesResponse.ok ? await episodesResponse.json() : [];
-            return { ...animation, episodes, type: 'Animation' };
-          })
-        );
-
+         const backendData = await getAllAnimations();
+       
+             const animationsWithEpisodes = await Promise.all(
+               (Array.isArray(backendData) ? backendData : []).map(async (animation) => {
+                 const episodesResponse = await fetch(
+                   `${API_BASE_URL}/api/animations/${animation.id}/episodes`
+                 );
+                 const episodes = episodesResponse.ok ? await episodesResponse.json() : [];
+                 return { ...animation, episodes, type: 'Animation' };
+               })
+             );
+       
         const formattedBackendData = animationsWithEpisodes.map((animation) => {
-          const previousEpisodeCount = 0; // We don't need previousBackendData in AllSeries
+          const previousEpisodeCount = 0; // Không cần previousBackendData trong AllSeries
           const currentEpisodeCount = animation.episodes.length;
           const isUpdated = currentEpisodeCount > previousEpisodeCount;
 

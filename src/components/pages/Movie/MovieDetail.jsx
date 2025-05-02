@@ -1,26 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import * as dashjs from 'dashjs';
 import Logo from '../../../assets/img/logo.jpg';
+import { API, API_BASE_URL } from '../../Service/Api'
 
 const MovieDetail = () => {
   const { id } = useParams();
-  const location = useLocation();
+
   const videoRef = useRef(null);
   const [player, setPlayer] = useState(null);
-  const [source, setSource] = useState('tmdb'); // Mặc định là TMDB
   const [movieDetails, setMovieDetails] = useState(null);
   const [videos, setVideos] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedTab, setSelectedTab] = useState('Thuyết Minh');
+
 
   // Khởi tạo Dash.js cho video DASH
   useEffect(() => {
-    if (!videoRef.current || !selectedVideo || !selectedVideo.videoUrl?.includes('/videos/')) return;
+    if (!videoRef.current || !selectedVideo || !selectedVideo.videoUrl?.includes('/phim/')) return;
 
-    console.log("✅ Khởi tạo Dash.js...");
+    console.log("Khởi tạo Dash.js...");
     const dashPlayer = dashjs.MediaPlayer().create();
     dashPlayer.initialize(videoRef.current, null, false);
     dashPlayer.on(dashjs.MediaPlayer.events.ERROR, (e) => {
@@ -29,8 +29,8 @@ const MovieDetail = () => {
     });
     setPlayer(dashPlayer);
 
-    const fullUrl = `http://localhost:8080${selectedVideo.videoUrl}`;
-    console.log("🔹 Gán nguồn DASH:", fullUrl);
+    const fullUrl = `${API}${selectedVideo.videoUrl}`;
+    console.log(" Gán nguồn DASH:", fullUrl);
     dashPlayer.attachSource(fullUrl);
 
     return () => {
@@ -41,100 +41,35 @@ const MovieDetail = () => {
     };
   }, [videoRef.current, selectedVideo]);
 
-  // Xác định nguồn từ URL
-  useEffect(() => {
-    if (location.pathname.includes('/movie/backend/')) {
-      setSource('backend');
-    } else {
-      setSource('tmdb');
-    }
-  }, [location]);
-
-  // Fetch dữ liệu
+  // Fetch dữ liệu từ backend
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        if (source === 'tmdb') {
-          // Lấy thông tin phim từ TMDB
-          const detailsResponse = await fetch(
-            `https://api.themoviedb.org/3/movie/${id}?language=vi`,
-            {
-              method: 'GET',
-              headers: {
-                accept: 'application/json',
-                Authorization: `Bearer ${import.meta.env.VITE_API_KEY}`,
-              },
-            }
-          );
-          if (!detailsResponse.ok) throw new Error('Không thể tải thông tin phim từ TMDB');
-          const detailsData = await detailsResponse.json();
-          setMovieDetails(detailsData);
+        // Lấy thông tin phim từ backend
+        const animationResponse = await fetch(`http://localhost:8080/api/animations/${id}`);
+        if (!animationResponse.ok) throw new Error('Không thể tải thông tin phim từ backend');
+        const animationData = await animationResponse.json();
+        setMovieDetails(animationData);
 
-          // Lấy video từ TMDB
-          const videosResponse = await fetch(
-            `https://api.themoviedb.org/3/movie/${id}/videos?language=en-US`,
-            {
-              method: 'GET',
-              headers: {
-                accept: 'application/json',
-                Authorization: `Bearer ${import.meta.env.VITE_API_KEY}`,
-              },
-            }
-          );
-          let videosData = { results: [] };
-          if (videosResponse.ok) {
-            videosData = await videosResponse.json();
-          }
+        // Lấy tập phim từ backend
+        const episodesResponse = await fetch(
+          `http://localhost:8080/api/animations/${id}/episodes`
+        );
+        if (!episodesResponse.ok) throw new Error('Không thể tải tập phim từ backend');
+        const episodesData = await episodesResponse.json();
 
-          // Kiểm tra backend để lấy dữ liệu bổ sung
-          const animationsResponse = await fetch('http://localhost:8080/api/animations');
-          if (!animationsResponse.ok) throw new Error('Không thể tải danh sách phim từ backend');
-          const animationsData = await animationsResponse.json();
-          const matchingAnimation = animationsData.find(
-            (animation) => animation.title === detailsData.title
-          );
-
-          if (matchingAnimation) {
-            const episodesResponse = await fetch(
-              `http://localhost:8080/api/animations/${matchingAnimation.id}/episodes`
-            );
-            if (episodesResponse.ok) {
-              const episodesData = await episodesResponse.json();
-              setVideos(episodesData);
-              if (episodesData.length > 0) {
-                setSelectedVideo(episodesData[0]);
-              }
-            } else {
-              setVideos(videosData.results);
-              if (videosData.results.length > 0) {
-                setSelectedVideo(videosData.results[0]);
-              }
-            }
-          } else {
-            setVideos(videosData.results);
-            if (videosData.results.length > 0) {
-              setSelectedVideo(videosData.results[0]);
-            }
-          }
-        } else if (source === 'backend') {
-          // Lấy thông tin phim từ backend
-          const animationResponse = await fetch(`http://localhost:8080/api/animations/${id}`);
-          if (!animationResponse.ok) throw new Error('Không thể tải thông tin phim từ backend');
-          const animationData = await animationResponse.json();
-          setMovieDetails(animationData);
-
-          const episodesResponse = await fetch(
-            `http://localhost:8080/api/animations/${id}/episodes`
-          );
-          if (!episodesResponse.ok) throw new Error('Không thể tải tập phim từ backend');
-          const episodesData = await episodesResponse.json();
+        // Kiểm tra nếu dữ liệu tập phim không phải là mảng
+        if (Array.isArray(episodesData)) {
           setVideos(episodesData);
-          if (episodesData.length > 0) {
-            setSelectedVideo(episodesData[0]);
-          }
+        } else {
+          setVideos([]);  // Nếu không phải mảng, gán mảng rỗng
+        }
+
+        if (episodesData.length > 0) {
+          setSelectedVideo(episodesData[0]);
         }
       } catch (err) {
         setError(err.message);
@@ -143,10 +78,8 @@ const MovieDetail = () => {
       }
     };
 
-    if (source) {
-      fetchData();
-    }
-  }, [source, id]);
+    fetchData();
+  }, [id]);
 
   const handleSelectVideo = (video) => {
     setSelectedVideo(video);
@@ -156,9 +89,9 @@ const MovieDetail = () => {
       return;
     }
 
-    console.log("🔹 Video URL:", video.videoUrl);
+    console.log("Video URL:", video.videoUrl);
 
-    if (video.videoUrl.includes('/videos/') && player) {
+    if (video.videoUrl.includes('/phim/') && player) {
       const fullUrl = `http://localhost:8080${video.videoUrl}`;
       console.log("🔹 Gán nguồn DASH:", fullUrl);
       try {
@@ -203,8 +136,8 @@ const MovieDetail = () => {
       );
     }
 
-   
-    if (selectedVideo.videoUrl?.includes('/videos/')) {
+    // Video DASH
+    if (selectedVideo.videoUrl?.includes('/phim/')) {
       return (
         <video
           ref={videoRef}
@@ -214,21 +147,6 @@ const MovieDetail = () => {
           className=" shadow-2xl"
           style={{ maxWidth: '100%' }}
         ></video>
-      );
-    }
-
-    
-    if (source === 'tmdb' && selectedVideo.key) {
-      return (
-        <iframe
-          src={`https://www.youtube.com/embed/${selectedVideo.key}`}
-          width="100%"
-          height="600"
-          allow="autoplay; fullscreen"
-          allowFullScreen
-          className=" shadow-2xl"
-          title={movieDetails?.title}
-        ></iframe>
       );
     }
 
@@ -280,10 +198,10 @@ const MovieDetail = () => {
                     {genre.name}
                   </span>
                 )) || (
-                  <span className="bg-blue-600 text-white py-1 px-3 rounded-full text-sm">
-                    Unknown
-                  </span>
-                )}
+                    <span className="bg-blue-600 text-white py-1 px-3 rounded-full text-sm">
+                      Unknown
+                    </span>
+                  )}
               </div>
               <p className="text-gray-300 mb-2">
                 <span className="font-semibold text-white">Năm:</span>{' '}
@@ -300,47 +218,19 @@ const MovieDetail = () => {
 
           <div className="w-full lg:w-1/4">
             <div className="bg-gray-800 p-6 rounded-xl shadow-lg">
-              <div className="flex justify-between mb-4">
-                <button
-                  className={`w-1/2 py-2 rounded-l-lg transition-all duration-300 ${selectedTab === 'Thuyết Minh' ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}
-                  onClick={() => setSelectedTab('Thuyết Minh')}
-                >
-                  Thuyết Minh
-                </button>
-                <button
-                  className={`w-1/2 py-2 rounded-r-lg transition-all duration-300 ${selectedTab === 'Vietsub' ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}
-                  onClick={() => setSelectedTab('Vietsub')}
-                >
-                  Vietsub
-                </button>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-white">Tập Phim</h2>
               </div>
-              <h3 className="text-lg font-semibold text-blue-400 mb-4">
-                Video liên quan
-              </h3>
-              <div className="flex gap-3 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 pb-4">
-                {videos.map((video) => (
+              <div>
+                {videos.map((video, index) => (
                   <button
-                    key={video.id}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${selectedVideo?.id === video.id
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-700 hover:bg-gray-600'
-                    }`}
+                    key={index}
                     onClick={() => handleSelectVideo(video)}
+                    className={`block text-left w-full text-gray-300 p-2 mb-2 rounded-lg hover:bg-gray-700 ${selectedVideo?.id === video.id ? 'bg-gray-600' : ''}`}
                   >
-                    {video.name || `Video ${video.id}`}
+                    Tập {index + 1}: {video.title}
                   </button>
                 ))}
-              </div>
-              <div className="mt-4 flex gap-3 flex-wrap">
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200">
-                  Fanpage FB
-                </button>
-                <button className="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-all duration-200">
-                  Nhóm Zalo
-                </button>
-                <button className="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-all duration-200">
-                  Nhóm 1
-                </button>
               </div>
             </div>
           </div>

@@ -36,27 +36,32 @@ const AnimationDetail = () => {
         console.log("Đã hủy Dash.js player");
       }
     };
-  }, [selectedVideo]); 
+  }, [selectedVideo]);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
-
+  
       try {
         const animationResponse = await fetch(`http://localhost:8080/api/animations/${id}`);
         if (!animationResponse.ok) throw new Error('Không thể tải thông tin phim từ backend');
         const animationData = await animationResponse.json();
-        setSeriesDetails(animationData);
-
+        console.log(animationData.data);
+        setSeriesDetails(animationData.data);
+  
         const episodesResponse = await fetch(`http://localhost:8080/api/animations/${id}/episodes`);
         if (!episodesResponse.ok) throw new Error('Không thể tải tập phim từ backend');
         const episodesData = await episodesResponse.json();
-        setVideos(episodesData);
-
-        if (episodesData.length > 0) {
-          setSelectedVideo(episodesData[0]);
-          setSelectedEpisode(episodesData[0].episodeNumber.toString());
+        if (Array.isArray(episodesData.data)) {
+          setVideos(episodesData.data); 
+        } else {
+          console.error('Dữ liệu tập phim không phải là mảng');
+        }
+  
+        if (episodesData.data && episodesData.data.length > 0) {
+          setSelectedVideo(episodesData.data[0]);
+          setSelectedEpisode(episodesData.data[0].episodeNumber.toString());
         }
       } catch (err) {
         setError(err.message);
@@ -64,9 +69,10 @@ const AnimationDetail = () => {
         setLoading(false);
       }
     };
-
+  
     fetchData();
   }, [id]);
+  
 
   const handleSelectVideo = (video) => {
     setSelectedVideo(video);
@@ -150,20 +156,24 @@ const AnimationDetail = () => {
         <div className="w-1/4 bg-gray-800 p-6 rounded-xl shadow-lg flex flex-col">
           <h3 className="text-lg font-semibold text-blue-400 mb-4">Chọn Tập</h3>
           <div className="flex flex-wrap gap-2 overflow-y-auto max-h-[500px] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
-            {videos.map((video) => (
-              <button
-                key={video.id}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  selectedEpisode === video.episodeNumber.toString()
+            {Array.isArray(videos) && videos.length > 0 ? (
+              videos.map((video) => (
+                <button
+                  key={video.id}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${selectedEpisode === video.episodeNumber.toString()
                     ? 'bg-blue-500 text-white'
                     : 'bg-gray-700 hover:bg-gray-600'
-                }`}
-                onClick={() => handleSelectVideo(video)}
-              >
-                {video.title}
-              </button>
-            ))}
+                    }`}
+                  onClick={() => handleSelectVideo(video)}
+                >
+                  {video.title}
+                </button>
+              ))
+            ) : (
+              <p className="text-gray-400">Không có tập phim.</p>
+            )}
           </div>
+
         </div>
 
         <div className="w-2/4 flex flex-col items-center">

@@ -5,7 +5,7 @@ const GenreList = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Gọi API danh sách thể loại từ TMDB
+    // Gọi API danh sách thể loại từ TMDB và gửi lên backend
     useEffect(() => {
         const fetchGenres = async () => {
             const url = 'https://api.themoviedb.org/3/genre/movie/list?language=vi';
@@ -23,11 +23,34 @@ const GenreList = () => {
                     throw new Error('Không thể tải danh sách thể loại từ TMDB');
                 }
                 const data = await response.json();
-                setGenres(data.genres); // Lưu danh sách thể loại vào state
+                setGenres(data.genres); 
+
+                // Gửi danh sách thể loại đến backend
+                await sendGenresToBackend(data.genres);
                 setLoading(false);
             } catch (err) {
                 setError(err.message);
                 setLoading(false);
+            }
+        };
+
+        const sendGenresToBackend = async (genres) => {
+            try {
+                const backendUrl = 'http://localhost:8080/api/genres/bulk'; // Địa chỉ API backend
+                const response = await fetch(backendUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(genres.map(genre => ({ name: genre.name }))), // Chỉ gửi name
+                });
+                if (!response.ok) {
+                    throw new Error('Không thể lưu thể loại vào backend');
+                }
+                console.log('Thể loại đã được lưu vào backend');
+            } catch (err) {
+                console.error('Lỗi khi gửi thể loại đến backend:', err.message);
+                setError(err.message);
             }
         };
 
@@ -51,7 +74,6 @@ const GenreList = () => {
                             className="bg-gray-800 p-4 rounded-lg shadow-lg hover:bg-gray-700 transition-colors"
                         >
                             <h2 className="text-lg font-semibold text-white">{genre.name}</h2>
-                          
                         </div>
                     ))}
                 </div>

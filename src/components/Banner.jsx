@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaArrowLeft, FaArrowRight } from "react-icons/fa"; // Icon cho nút điều khiển
-
+import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
+import { API_BASE_URL } from "./Service/Api";
 const Banner = () => {
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -12,10 +12,10 @@ const Banner = () => {
   useEffect(() => {
     const fetchBanners = async () => {
       try {
-        const response = await fetch("http://localhost:8080/api/banners");
+        const response = await fetch(`${API_BASE_URL}/api/banners`);
         if (!response.ok) throw new Error("Failed to fetch banners");
         const data = await response.json();
-        setBanners(data);
+        setBanners(data.data); 
         setLoading(false);
       } catch (error) {
         console.error("Error fetching banners:", error);
@@ -41,13 +41,13 @@ const Banner = () => {
     };
 
     animationFrameId.current = requestAnimationFrame(scroll);
-    return () => cancelAnimationFrame(animationFrameId.current); // Dọn dẹp
-  }, [loading]); // Chạy lại khi banners tải xong
+    return () => cancelAnimationFrame(animationFrameId.current);
+  }, [loading]);
 
-  // Hàm điều khiển thủ công
+
   const scrollLeft = () => {
     if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: -300, behavior: "smooth" }); // Di chuyển trái 300px
+      scrollRef.current.scrollBy({ left: -300, behavior: "smooth" });
     }
   };
 
@@ -93,7 +93,7 @@ const Banner = () => {
                 className="w-full h-full object-cover"
               />
               <div className="absolute top-2 left-2 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">
-                
+
                 {banner.animationId ? "Series" : "N/A"}
               </div>
               <div className="absolute bottom-2 left-2 text-white text-sm font-bold">
